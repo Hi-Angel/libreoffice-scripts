@@ -61,10 +61,10 @@ def isiter(maybe_iterable):
         return False
 
 # nLevels: number of levels it allowed to descend
+# predicate: types to use, except iterables
 def searchLimited(unoObject, valToSearch, nLevels,
-                  predicate = lambda obj: not isinstance(obj, uno.ByteSequence),
-                  path = '<TOPLEVEL>'):
-    for (property_name, val) in getmembers_uno(unoObject, predicate):
+                  predicate, path = '<TOPLEVEL>'):
+    for (property_name, val) in getmembers_uno(unoObject, lambda p: isiter(p) or predicate(p)):
         if property_name.startswith('__'):
             continue # ignore private stuff
         print('TRACE: path = ' + path + '.' + property_name)
@@ -73,7 +73,7 @@ def searchLimited(unoObject, valToSearch, nLevels,
         property = getattr(unoObject, property_name)
         if nLevels - 1 != 0 and isiter(property):
             searchLimited(property, valToSearch, nLevels - 1, predicate,
-                          path + '.' + property_name + '.<iter>.')
+                          path + '.' + property_name + '.<iter>')
     if nLevels - 1 != 0 and isiter(unoObject):
         searchLimited(unoObject, valToSearch, nLevels - 1, predicate,
                         path + '.<iter>.' + property_name)
