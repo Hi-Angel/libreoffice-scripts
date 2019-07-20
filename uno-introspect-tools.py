@@ -62,18 +62,29 @@ def isiter(maybe_iterable):
 
 # nLevels: number of levels it allowed to descend
 # predicate: types to use, except iterables
+# pIgnore: String -> Bool, accepts property name, may be used to drive search.
 def searchLimited(unoObject, valToSearch, nLevels,
-                  predicate, path = '<TOPLEVEL>'):
-    for (property_name, val) in getmembers_uno(unoObject, lambda p: isiter(p) or predicate(p)):
-        if property_name.startswith('__'):
-            continue # ignore private stuff
-        print('TRACE: path = ' + path + '.' + property_name)
+                  predicate, pIgnore, path = '<TOPLEVEL>'):
+    def try_property(property_name):
+        if property_name.startswith('__') or pIgnore(property_name):
+            return None # ignore private stuff
+        print('TRACE: ' + path + '.' + property_name)
         if val == valToSearch:
             return path + '.' + property_name
         property = getattr(unoObject, property_name)
         if nLevels - 1 != 0 and isiter(property):
-            searchLimited(property, valToSearch, nLevels - 1, predicate,
-                          path + '.' + property_name + '.<iter>')
+            return searchLimited(property, valToSearch, nLevels - 1, predicate, pIgnore,
+                                 path + '.' + property_name + '.<iter>')
+    for (property_name, val) in getmembers_uno(unoObject, lambda p: isiter(p) or predicate(p)):
+        ret = try_property(property_name)
+        if (ret != None):
+            return ret
     if nLevels - 1 != 0 and isiter(unoObject):
-        searchLimited(unoObject, valToSearch, nLevels - 1, predicate,
-                        path + '.<iter>.' + property_name)
+        index = 0
+        for item in unoObject:
+            ret = searchLimited(item, valToSearch, nLevels - 1, predicate, pIgnore,
+                                 path + '.<iter ' + str(index) + '>')
+            if (ret != None):
+                return ret
+            ++index
+    return None
