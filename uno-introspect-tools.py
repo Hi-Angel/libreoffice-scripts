@@ -60,23 +60,42 @@ def isiter(maybe_iterable):
     except TypeError:
         return False
 
+def getValSafe(obj, prop_s):
+    try:
+        return getattr(obj, prop_s)
+    except Exception:
+        return None
+
+def getmembers_uno2(object,
+                     predicate=lambda obj: not isinstance(obj, uno.ByteSequence)):
+    ret = []
+    for prop_s in dir(object):
+        val = getValSafe(object, prop_s)
+        if predicate(val):
+            ret.append((prop_s, val))
+    return ret
+
 # nLevels: number of levels it allowed to descend
 # predicate: types to use, except iterables
 # pIgnore: String -> Bool, accepts property name, may be used to drive search.
 def searchLimited(unoObject, valToSearch, nLevels,
                   predicate, pIgnore, path = '<TOPLEVEL>'):
-    def try_property(property_name):
+    def try_property(property_name, val):
         if property_name.startswith('__') or pIgnore(property_name):
             return None # ignore private stuff
         print('TRACE: ' + path + '.' + property_name)
         if val == valToSearch:
             return path + '.' + property_name
-        property = getattr(unoObject, property_name)
-        if nLevels - 1 != 0 and isiter(property):
-            return searchLimited(property, valToSearch, nLevels - 1, predicate, pIgnore,
-                                 path + '.' + property_name + '.<iter>')
+        if nLevels - 1 != 0 and isiter(val):
+            index = 0
+            for item in val:
+                ret = searchLimited(item, valToSearch, nLevels - 1, predicate, pIgnore,
+                                    path + '.' + property_name + '.<iter ' + str(index) + '>')
+                if (ret != None):
+                    return ret
+                ++index
     for (property_name, val) in getmembers_uno(unoObject, lambda p: isiter(p) or predicate(p)):
-        ret = try_property(property_name)
+        ret = try_property(property_name, val)
         if (ret != None):
             return ret
     if nLevels - 1 != 0 and isiter(unoObject):
