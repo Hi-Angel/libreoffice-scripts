@@ -4,6 +4,7 @@ from inspect import *
 # this is a modified version of inspect.getmembers(). It was modified to not fail on
 # uno exceptions that sometimes happen during access attempts
 # And while on it: ignore uno.ByteSequence by default.
+# returns: [(String, a)]
 def getmembers_uno(object, predicate=lambda obj: not isinstance(obj, uno.ByteSequence)):
     """Return all members of an object as (name, value) pairs sorted by name.
     Optionally, only return members that satisfy a given predicate."""
@@ -44,8 +45,32 @@ def getmembers_uno(object, predicate=lambda obj: not isinstance(obj, uno.ByteSeq
                 continue
         except uno.getClass("com.sun.star.uno.RuntimeException"):
             continue # ignore: inspect.RuntimeException: Getting from this property is not supported
+        except Exception:
+            continue # ignore: everything, we don't care
         if not predicate or predicate(value):
             results.append((key, value))
         processed.add(key)
     results.sort(key=lambda pair: pair[0])
     return results
+
+def isiter(maybe_iterable):
+    try:
+        iter(maybe_iterable)
+        return True
+    except TypeError:
+        return False
+
+# nLevels: number of levels it allowed to descend
+def searchLimited(unoObject, valToSearch, nLevels,
+                  predicate = lambda obj: not isinstance(obj, uno.ByteSequence),
+                  path = '<TOPLEVEL>'):
+    for (property_name, val) in getmembers_uno(unoObject, predicate):
+        if property_name.startswith('__'):
+            continue # ignore private stuff
+        print('TRACE: path = ' + path + '.' + property_name)
+        if val == valToSearch:
+            return path + '.' + property_name
+        property = getattr(unoObject, property_name)
+        if nLevels - 1 != 0 and isiter(property):
+            searchLimited(property, valToSearch, nLevels - 1, predicate,
+                          path + '.' + property_name)
