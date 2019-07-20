@@ -73,4 +73,7 @@ def searchLimited(unoObject, valToSearch, nLevels,
         property = getattr(unoObject, property_name)
         if nLevels - 1 != 0 and isiter(property):
             searchLimited(property, valToSearch, nLevels - 1, predicate,
-                          path + '.' + property_name)
+                          path + '.' + property_name + '.<iter>.')
+    if nLevels - 1 != 0 and isiter(unoObject):
+        searchLimited(unoObject, valToSearch, nLevels - 1, predicate,
+                        path + '.<iter>.' + property_name)
