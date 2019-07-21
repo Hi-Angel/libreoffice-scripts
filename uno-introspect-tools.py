@@ -85,7 +85,7 @@ def searchLimited(unoObject, valToSearch, nLevels,
             return None # ignore private stuff
         print('TRACE: ' + path + '.' + property_name)
         if val == valToSearch:
-            return path + '.' + property_name
+            return 'FOUND: ' + path + '.' + property_name
         if nLevels - 1 != 0 and isiter(val):
             index = 0
             for item in val:
