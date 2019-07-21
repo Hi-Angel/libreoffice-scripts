@@ -93,7 +93,7 @@ def searchLimited(unoObject, valToSearch, nLevels,
                                     path + '.' + property_name + '.<iter ' + str(index) + '>')
                 if (ret != None):
                     return ret
-                ++index
+                index += 1
     for (property_name, val) in getmembers_uno(unoObject, lambda p: isiter(p) or predicate(p)):
         ret = try_property(property_name, val)
         if (ret != None):
@@ -105,5 +105,5 @@ def searchLimited(unoObject, valToSearch, nLevels,
                                  path + '.<iter ' + str(index) + '>')
             if (ret != None):
                 return ret
-            ++index
+            index += 1
     return None
