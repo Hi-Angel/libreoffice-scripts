@@ -37,6 +37,20 @@ def dropFilters(filters):
     for filter in filters:
         filter.IsHidden = True
 
+def setFilters(filters, filtersToSet):
+    # that sucks, but if you set IsHidden to the same value it has, it still tries to
+    # filter stuff out, bogging CPU. So below I check before altering IsHidden.
+    namesToFilters = {}
+    for filter in filters:
+        namesToFilters[filter.Name] = filter
+    for wantedFilterNames in filtersToSet:
+        filter = namesToFilters.pop(wantedFilterNames)
+        if filter.IsHidden != False:
+            filter.IsHidden == False
+    for _,filter in namesToFilters.items():
+        if filter.IsHidden != True:
+            filter.IsHidden == True
+
 # OutputRange of pivot table includes "technical rows" at the beginning and end
 def pivotTableUsedRangeMentions(pivotTable, sheet):
     N_TECHNICAL_ROWS_AT_START = 5
@@ -47,14 +61,13 @@ def pivotTableUsedRangeMentions(pivotTable, sheet):
                                         range_raw.EndColumn,
                                         range_raw.EndRow + N_TECHNICAL_ROWS_AT_END)
 
-# [(Int, Row)], where Int is a number of views, and Row is the row
-def collectInfluencers(sheet):
+# Sheet -> [String] -> [(int, Row)]; where Int is a number of views, and Row is the
+# row
+def collectFromPivotTable(sheet, filterNames):
     pilotTable = sheet.DataPilotTables.getByIndex(0)
     filters = pilotTable.DataPilotFields.getByName('Author type').Items
     # "influencers" means publishers and celebrity
-    dropFilters(filters)
-    filters.getByName('Publisher').IsHidden = False
-    filters.getByName('Celebrity').IsHidden = False
+    setFilters(filters, filterNames)
     ret = []
     for row in pivotTableUsedRangeMentions(pilotTable, sheet).Rows:
         mb_views = row.getCellByPosition(1, 0).String # aka impressions
@@ -62,11 +75,18 @@ def collectInfluencers(sheet):
     ret.sort(key = lambda pair: pair[0], reverse = True) # most views first
     return ret
 
+# [(Int, Row)],
+def collectPublishers(sheet):
+    return collectFromPivotTable(sheet, ['Publisher'])
+
+# [(Int, Row)],
+def collectInfluencers(sheet):
+    return collectFromPivotTable(sheet, ['Publisher', 'Celebrity'])
+
 desktop = connectToLO()
 (drawApp, spreadsheetApp) = getLOInstances(desktop)
 mentionsSheet = spreadsheetApp.Sheets.getByName('QQ')
-mentionsPilotTable = mentionsSheet.DataPilotTables.getByIndex(0)
 influencersSorted = collectInfluencers(mentionsSheet)
-# publishersSorted = collectPublishers(mentionsSheet)
+publishersSorted  = collectPublishers(mentionsSheet)
 # fillTable(influencersSorted, getInflTable(mentionsSheet))
 # fillTable(publishersSorted, getPublTable(mentionsSheet))
