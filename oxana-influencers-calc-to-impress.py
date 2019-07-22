@@ -62,7 +62,7 @@ def pivotTableUsedRangeMentions(pivotTable, sheet):
     return sheet.getCellRangeByPosition(range_raw.StartColumn,
                                         range_raw.StartRow + N_TECHNICAL_ROWS_AT_START,
                                         range_raw.EndColumn,
-                                        range_raw.EndRow - N_TECHNICAL_ROWS_AT_END)
+                                        range_raw.EndRow   - N_TECHNICAL_ROWS_AT_END)
 
 # Rows -> Int -> [String]
 def rowToStrings(row, ncols):
