@@ -104,10 +104,8 @@ publishersSorted  = collectPublishers(mentionsSheet)
 # test code below
 slide1 = drawApp.DrawPages.getByIndex(0)
 table1 = tablesFromSlide(slide1)[0]
-index = 0
-for row in table1.Model.Rows:
+for index, row in enumerate(table1.Model.Rows):
     if index == 0:
-        index += 1
         continue
     if index >= len(influencersSorted):
         break
@@ -115,7 +113,6 @@ for row in table1.Model.Rows:
     views = influencersSorted[index][0]
     views_str = str(int(views / 1000)) + ' K' if views > 1000 else str(views)
     row.getCellByPosition(2, 0).String = views_str
-    index += 1
 
 
 # fillTable(influencersSorted, getInflTable(mentionsSheet))
