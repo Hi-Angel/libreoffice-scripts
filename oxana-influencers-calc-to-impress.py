@@ -1,6 +1,22 @@
 #!python
 import uno
 
+class PivotRow:
+    def __init__(self, author, views, count):
+        self.author = author
+        self.views  = views
+        self.count  = count
+
+    def __str__(self):
+        return "PivotRow {{author = {}, views = {}, count = {}}}" \
+            .format(self.author, self.views, self.count)
+
+    @classmethod
+    def fromRow(self, row):
+        return self(row.getCellByPosition(0, 0).String,
+                    row.getCellByPosition(1, 0).String,
+                    row.getCellByPosition(2, 0).String)
+
 # run libreoffice as:
 # soffice --calc --accept="socket,host=localhost,port=2002;urp;StarOffice.ServiceManager"
 def connectToLO():
@@ -13,6 +29,10 @@ def connectToLO():
     smgr = ctx.ServiceManager
     desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
     return desktop
+
+def absoluteUrl(relativeFile):
+    """Constructs absolute path to the current dir in the format required by PyUNO that working with files"""
+    return "file:///" + os.path.realpath(".") + "/" + relativeFile
 
 def getLOInstances(desktop):
     loInstances = [c for c in desktop.Components]
@@ -83,7 +103,7 @@ def collectFromPivotTable(sheet, filterNames):
     for row in pivotRange.Rows:
         mb_views = row.getCellByPosition(1, 0).String # aka impressions
         ret.append((int(mb_views.partition(',')[0]) if mb_views else 0, # 0 is required for sorting
-                    rowToStrings(row, pivotRange.Columns.Count)))
+                    PivotRow.fromRow(row)))
     ret.sort(key = lambda pair: pair[0], reverse = True) # most views first
     return ret
 
@@ -96,10 +116,12 @@ def collectInfluencers(sheet):
     return collectFromPivotTable(sheet, ['Blogger', 'Celebrity'])
 
 desktop = connectToLO()
+
+# todo: this is probably slides sample, not a generic "draw app"?
 (drawApp, spreadsheetApp) = getLOInstances(desktop)
 mentionsSheet = spreadsheetApp.Sheets.getByName('QQ')
 influencersSorted = collectInfluencers(mentionsSheet)
-publishersSorted  = collectPublishers(mentionsSheet)
+# publishersSorted  = collectPublishers(mentionsSheet)
 
 # test code below
 slide1 = drawApp.DrawPages.getByIndex(0)
@@ -109,11 +131,7 @@ for index, row in enumerate(table1.Model.Rows):
         continue
     if index >= len(influencersSorted):
         break
-    row.getCellByPosition(1, 0).String = influencersSorted[index][1][0] # name
+    row.getCellByPosition(1, 0).String = influencersSorted[index][1].author
     views = influencersSorted[index][0]
     views_str = str(int(views / 1000)) + ' K' if views > 1000 else str(views)
     row.getCellByPosition(2, 0).String = views_str
-
-
-# fillTable(influencersSorted, getInflTable(mentionsSheet))
-# fillTable(publishersSorted, getPublTable(mentionsSheet))
