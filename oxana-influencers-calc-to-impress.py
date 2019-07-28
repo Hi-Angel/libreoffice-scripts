@@ -101,9 +101,10 @@ def collectFromPivotTable(sheet, filterNames):
     ret = []
     pivotRange = pivotTableUsedRangeMentions(pilotTable, sheet)
     for row in pivotRange.Rows:
-        mb_views = row.getCellByPosition(1, 0).String # aka impressions
+        pivotRow = PivotRow.fromRow(row)
+        mb_views = pivotRow.views # aka impressions
         ret.append((int(mb_views.partition(',')[0]) if mb_views else 0, # 0 is required for sorting
-                    PivotRow.fromRow(row)))
+                    pivotRow))
     ret.sort(key = lambda pair: pair[0], reverse = True) # most views first
     return ret
 
@@ -123,15 +124,50 @@ mentionsSheet = spreadsheetApp.Sheets.getByName('QQ')
 influencersSorted = collectInfluencers(mentionsSheet)
 # publishersSorted  = collectPublishers(mentionsSheet)
 
-# test code below
-slide1 = drawApp.DrawPages.getByIndex(0)
-table1 = tablesFromSlide(slide1)[0]
-for index, row in enumerate(table1.Model.Rows):
-    if index == 0:
-        continue
-    if index >= len(influencersSorted):
-        break
-    row.getCellByPosition(1, 0).String = influencersSorted[index][1].author
-    views = influencersSorted[index][0]
-    views_str = str(int(views / 1000)) + ' K' if views > 1000 else str(views)
-    row.getCellByPosition(2, 0).String = views_str
+topSlideSample   = drawApp.DrawPages.getByIndex(0)
+topTableSample   = tablesFromSlide(topSlideSample)[0]
+tailSlideSample  = drawApp.DrawPages.getByIndex(1)
+tailTablesSample = tablesFromSlide(tailSlideSample) # left table
+
+# Row -> PivotRow -> ()
+def fillSlideRow(row, pivotRow, views):
+    row.getCellByPosition(1, 0).String = pivotRow.author
+    viewsStr = str(int(views / 1000)) + ' K' if views > 1000 else str(views)
+    row.getCellByPosition(2, 0).String = viewsStr
+
+def emptyRows(slideRows, since):
+    for i in range(since, slideRows.Count):
+        row = slideRows.getByIndex(i)
+        row.getCellByPosition(1, 0).String = ''
+        row.getCellByPosition(2, 0).String = ''
+
+# SlideTable -> Iter (Int, PivotRow) -> Iter (Int, Rows)
+def fillSlideTableFromSheet(slideTable, sheetRowsIter):
+    nSlideRowsPassed = 0
+    slideRows = slideTable.Model.Rows
+    for (i, oneSlideRow), (views, oneSheetRow) in zip(enumerate(slideRows),
+                                                      sheetRowsIter):
+        nSlideRowsPassed += 1
+        if i == 0:
+            continue # 1-st slide-table row is a header
+        fillSlideRow(oneSlideRow, oneSheetRow, views)
+    if nSlideRowsPassed < slideTable.Model.Rows.Count: # not enough pivot results
+        emptyRows(slideRows, nSlideRowsPassed)
+        return None
+    else: # means the iter has more elements
+        return sheetRowsIter
+
+sheetRowsIter = fillSlideTableFromSheet(topTableSample, iter(influencersSorted))
+while sheetRowsIter != None:
+    for i, table in enumerate(tailTablesSample):
+        sheetRowsIter = fillSlideTableFromSheet(table, sheetRowsIter)
+        if sheetRowsIter == None:
+            for iUnusedTables in range(i+1, len(tailTablesSample)):
+                tailTablesSample[iUnusedTables].dispose()
+            break
+    # if sheetRowsIter != None:
+    #     # copy table
+    #     # assign to tailTableSample
+
+# drawApp.storeAsURL(absoluteUrl("output.odp"),())
+# drawApp.dispose()
