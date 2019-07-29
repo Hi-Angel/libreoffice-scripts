@@ -117,19 +117,6 @@ def collectPublishers(sheet):
 def collectInfluencers(sheet):
     return collectFromPivotTable(sheet, ['Blogger', 'Celebrity'])
 
-(desktop, smgr) = connectToLO()
-
-# todo: this is probably slides sample, not a generic "draw app"?
-(drawApp, spreadsheetApp) = getLOInstances(desktop)
-mentionsSheet = spreadsheetApp.Sheets.getByName('QQ')
-influencersSorted = collectInfluencers(mentionsSheet)
-# publishersSorted  = collectPublishers(mentionsSheet)
-
-topSlideSample   = drawApp.DrawPages.getByIndex(0)
-topTableSample   = tablesFromSlide(topSlideSample)[0]
-tailSlideSample  = drawApp.DrawPages.getByIndex(1)
-tailTablesSample = tablesFromSlide(tailSlideSample) # left table
-
 # Row -> PivotRow -> ()
 def fillSlideRow(row, pivotRow, views):
     row.getCellByPosition(1, 0).String = pivotRow.author
@@ -179,10 +166,23 @@ def fillTailTables(tailTables, tailTablesSlide, drawController, smgr, sheetRowsI
             newTailTables = tablesFromSlide(newTailTablesSlide)
             return fillTailTables(newTailTables, newTailTablesSlide, drawController, smgr, sheetRowsIter)
 
+(desktop, smgr) = connectToLO()
+
+# todo: this is probably slides sample, not a generic "draw app"?
+(impressApp, spreadsheetApp) = getLOInstances(desktop)
+mentionsSheet = spreadsheetApp.Sheets.getByName('QQ')
+influencersSorted = collectInfluencers(mentionsSheet)
+# publishersSorted  = collectPublishers(mentionsSheet)
+
+topSlideSample   = impressApp.DrawPages.getByIndex(0)
+topTableSample   = tablesFromSlide(topSlideSample)[0]
+tailSlideSample  = impressApp.DrawPages.getByIndex(1)
+tailTablesSample = tablesFromSlide(tailSlideSample) # left table
+
 sheetRowsIter = fillSlideTableFromSheet(topTableSample, iter(influencersSorted))
 sheetRowsIter = fillTailTables(tailTablesSample, tailSlideSample,
-                               drawApp.CurrentController, smgr, sheetRowsIter)
+                               impressApp.CurrentController, smgr, sheetRowsIter)
 assert sheetRowsIter == None, "BUG: some rows in the sheet haven't been processed"
 
-# drawApp.storeAsURL(absoluteUrl("output.odp"),())
-# drawApp.dispose()
+# impressApp.storeAsURL(absoluteUrl("output.odp"),())
+# impressApp.dispose()
