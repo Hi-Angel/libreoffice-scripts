@@ -122,12 +122,14 @@ def fillSlideRow(row, pivotRow, views):
     row.getCellByPosition(1, 0).String = pivotRow.author
     viewsStr = str(int(views / 1000)) + ' K' if views > 1000 else str(views)
     row.getCellByPosition(2, 0).String = viewsStr
+    row.getCellByPosition(3, 0).String = pivotRow.count
 
 def emptyRows(slideRows, since):
     for i in range(since, slideRows.Count):
         row = slideRows.getByIndex(i)
         row.getCellByPosition(1, 0).String = ''
         row.getCellByPosition(2, 0).String = ''
+        row.getCellByPosition(3, 0).String = ''
 
 # SlideTable -> Iter (Int, PivotRow) -> Iter (Int, Rows)
 def fillSlideTableFromSheet(slideTable, sheetRowsIter):
