@@ -28,7 +28,8 @@ def connectToLO():
     ctx = resolver.resolve( "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext" )
     smgr = ctx.ServiceManager
     desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
-    return desktop
+    # return (desktop, localContext)
+    return (desktop, smgr)
 
 def absoluteUrl(relativeFile):
     """Constructs absolute path to the current dir in the format required by PyUNO that working with files"""
@@ -116,7 +117,7 @@ def collectPublishers(sheet):
 def collectInfluencers(sheet):
     return collectFromPivotTable(sheet, ['Blogger', 'Celebrity'])
 
-desktop = connectToLO()
+(desktop, smgr) = connectToLO()
 
 # todo: this is probably slides sample, not a generic "draw app"?
 (drawApp, spreadsheetApp) = getLOInstances(desktop)
@@ -157,17 +158,31 @@ def fillSlideTableFromSheet(slideTable, sheetRowsIter):
     else: # means the iter has more elements
         return sheetRowsIter
 
+# duplicates `slide`. Also sets the duplicated slide as "current".
+def copySlide(drawController, slide, smgr):
+    dispatcher = smgr.createInstance("com.sun.star.frame.DispatchHelper")
+    drawController.setCurrentPage(slide)
+    dispatcher.executeDispatch(drawController.Frame, ".uno:DuplicatePage", "", 0, ())
+    return drawController.CurrentPage
+
+
+def fillTailTables(tailTables, tailTablesSlide, drawController, smgr, sheetRowsIter):
+    while sheetRowsIter != None:
+        for i, table in enumerate(tailTables):
+            sheetRowsIter = fillSlideTableFromSheet(table, sheetRowsIter)
+            if sheetRowsIter == None:
+                for iUnusedTables in range(i+1, len(tailTables)):
+                    tailTables[iUnusedTables].dispose()
+                break
+        if sheetRowsIter != None:
+            newTailTablesSlide = copySlide(drawController, tailTablesSlide, smgr)
+            newTailTables = tablesFromSlide(newTailTablesSlide)
+            return fillTailTables(newTailTables, newTailTablesSlide, drawController, smgr, sheetRowsIter)
+
 sheetRowsIter = fillSlideTableFromSheet(topTableSample, iter(influencersSorted))
-while sheetRowsIter != None:
-    for i, table in enumerate(tailTablesSample):
-        sheetRowsIter = fillSlideTableFromSheet(table, sheetRowsIter)
-        if sheetRowsIter == None:
-            for iUnusedTables in range(i+1, len(tailTablesSample)):
-                tailTablesSample[iUnusedTables].dispose()
-            break
-    # if sheetRowsIter != None:
-    #     # copy table
-    #     # assign to tailTableSample
+sheetRowsIter = fillTailTables(tailTablesSample, tailSlideSample,
+                               drawApp.CurrentController, smgr, sheetRowsIter)
+assert sheetRowsIter == None, "BUG: some rows in the sheet haven't been processed"
 
 # drawApp.storeAsURL(absoluteUrl("output.odp"),())
 # drawApp.dispose()
