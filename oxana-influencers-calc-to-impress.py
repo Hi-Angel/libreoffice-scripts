@@ -33,7 +33,8 @@ def connectToLO():
 
 def absoluteUrl(relativeFile):
     """Constructs absolute path to the current dir in the format required by PyUNO that working with files"""
-    return "file:///" + os.path.realpath(".") + "/" + relativeFile
+    mbPrefix = '' if relativeFile[0] == '/' else os.path.realpath('.') + '/'
+    return 'file:///' + mbPrefix + relativeFile
 
 def getLOInstances(desktop):
     loInstances = [c for c in desktop.Components]
