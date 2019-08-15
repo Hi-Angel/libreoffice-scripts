@@ -1,4 +1,6 @@
 #!python
+import sys
+import os
 import uno
 from typing import Any
 
@@ -178,7 +180,6 @@ def copySlide(drawController, slide, smgr):
     return drawController.CurrentPage
 
 
-
 def fillTailTables(tailTablesSlide, drawController, smgr, sheetRowsIter):
     tailTables = tablesFromSlide(tailTablesSlide)
     while sheetRowsIter != None:
@@ -192,25 +193,40 @@ def fillTailTables(tailTablesSlide, drawController, smgr, sheetRowsIter):
             newTailTablesSlide = copySlide(drawController, tailTablesSlide, smgr)
             return fillTailTables(newTailTablesSlide, drawController, smgr, sheetRowsIter)
 
-(desktop, smgr) = connectToLO()
+def exitIfWrongArgs():
+    if len(sys.argv) != 4:
+        print("Wrong number of arguments. Usage:\n" \
+              "{}: <file_tables_sample> <file_spreadsheet> <file_dst_presentation> <impressions|publishers>".format(sys.argv[0]))
+        exit(-1);
 
-# todo: this is probably slides sample, not a generic "draw app"?
-(impressApp, spreadsheetApp) = getLOInstances(desktop)
-mentionsSheet = spreadsheetApp.Sheets.getByName('QQ')
-influencersSorted = collectInfluencers(mentionsSheet)
-# publishersSorted  = collectPublishers(mentionsSheet)
+def openDocuments(desktop) -> (XComponent, XComponent, XComponent):
+    # todo: open frames hidden, see https://forum.openoffice.org/en/forum/viewtopic.php?f=44&t=41379
+    sampleApp      = desktop.loadComponentFromURL(absoluteUrl(sys.argv[1]) ,"_blank", 0, ())
+    spreadsheetApp = desktop.loadComponentFromURL(absoluteUrl(sys.argv[2]) ,"_blank", 0, ())
+    dstApp         = desktop.loadComponentFromURL(absoluteUrl(sys.argv[3]) ,"_blank", 0, ())
+    return (sampleApp, spreadsheetApp, dstApp)
 
-topSlideSample   = impressApp.DrawPages.getByIndex(0)
-# now, let's copy just for lulz, or rather for testing purposes
-copiedTopSlideSample = copySlideTo(impressApp, impressApp, topSlideSample, 0, smgr)
-topTableSample   = tablesFromSlide(copiedTopSlideSample)[0]
-tailSlideSample  = impressApp.DrawPages.getByIndex(2)
-tailTablesSample = tablesFromSlide(tailSlideSample) # left table
+# script <file_tables_sample> <file_spreadsheet> <file_dst_presentation> <impressions|publishers>
+def main():
+    exitIfWrongArgs()
+    (desktop, smgr) = connectToLO()
 
-sheetRowsIter = fillSlideTableFromSheet(topTableSample, iter(influencersSorted))
-sheetRowsIter = fillTailTables(tailSlideSample, impressApp.CurrentController,
-                               smgr, sheetRowsIter)
-assert sheetRowsIter == None, "BUG: some rows in the sheet haven't been processed"
+    (sampleApp, spreadsheetApp, dstApp) = openDocuments(desktop)
+    mentionsSheet = spreadsheetApp.Sheets.getByName('QQ')
+    # todo: check the impressions|publishers arg
+    influencersSorted = collectInfluencers(mentionsSheet)
+    # publishersSorted  = collectPublishers(mentionsSheet)
 
-# impressApp.storeAsURL(absoluteUrl("output.odp"),())
-# impressApp.dispose()
+    topSlideSample  = sampleApp.DrawPages.getByIndex(0)
+    tailSlideSample = sampleApp.DrawPages.getByIndex(1)
+
+    # todo: ask oxana: how to determine where tables should be placed in? A cmd arg?
+    dstSlideTop = copySlideTo(sampleApp, dstApp, topSlideSample, 0, smgr) # todo: 0 for testing
+    sheetRowsIter = fillSlideTableFromSheet(dstSlideTop, iter(influencersSorted))
+    dstSlideTail = copySlideTo(sampleApp, dstApp, tailSlideSample, 1, smgr) # todo: 1 for testing
+    sheetRowsIter = fillTailTables(dstSlideTail, impressApp.CurrentController,
+                                   smgr, sheetRowsIter)
+    assert sheetRowsIter == None, "BUG: some rows in the sheet haven't been processed"
+
+if __name__ == "__main__":
+    main()
