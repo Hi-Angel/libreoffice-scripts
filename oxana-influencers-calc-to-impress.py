@@ -156,7 +156,9 @@ def copySlide(drawController, slide, smgr):
     return drawController.CurrentPage
 
 
-def fillTailTables(tailTables, tailTablesSlide, drawController, smgr, sheetRowsIter):
+
+def fillTailTables(tailTablesSlide, drawController, smgr, sheetRowsIter):
+    tailTables = tablesFromSlide(tailTablesSlide)
     while sheetRowsIter != None:
         for i, table in enumerate(tailTables):
             sheetRowsIter = fillSlideTableFromSheet(table, sheetRowsIter)
@@ -166,8 +168,7 @@ def fillTailTables(tailTables, tailTablesSlide, drawController, smgr, sheetRowsI
                 break
         if sheetRowsIter != None:
             newTailTablesSlide = copySlide(drawController, tailTablesSlide, smgr)
-            newTailTables = tablesFromSlide(newTailTablesSlide)
-            return fillTailTables(newTailTables, newTailTablesSlide, drawController, smgr, sheetRowsIter)
+            return fillTailTables(newTailTablesSlide, drawController, smgr, sheetRowsIter)
 
 (desktop, smgr) = connectToLO()
 
@@ -183,8 +184,8 @@ tailSlideSample  = impressApp.DrawPages.getByIndex(1)
 tailTablesSample = tablesFromSlide(tailSlideSample) # left table
 
 sheetRowsIter = fillSlideTableFromSheet(topTableSample, iter(influencersSorted))
-sheetRowsIter = fillTailTables(tailTablesSample, tailSlideSample,
-                               impressApp.CurrentController, smgr, sheetRowsIter)
+sheetRowsIter = fillTailTables(tailSlideSample, impressApp.CurrentController,
+                               smgr, sheetRowsIter)
 assert sheetRowsIter == None, "BUG: some rows in the sheet haven't been processed"
 
 # impressApp.storeAsURL(absoluteUrl("output.odp"),())
