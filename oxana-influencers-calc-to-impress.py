@@ -1,5 +1,9 @@
 #!python
 import uno
+from typing import Any
+
+XController = Any
+XComponent = Any
 
 class PivotRow:
     def __init__(self, author, views, count):
@@ -148,6 +152,24 @@ def fillSlideTableFromSheet(slideTable, sheetRowsIter):
     else: # means the iter has more elements
         return sheetRowsIter
 
+# courtesy to https://forum.openoffice.org/en/forum/viewtopic.php?f=20&t=63966
+# BUG: this works, but LO sometimes too slow in doing the copy, so by time you
+# execute Paste, slide wasn't copied yet, which gonna result in further problems.
+def copySlideTo(srcApp: XComponent, dstApp: XComponent,
+                slide, insert_after: int, smgr):
+    srcController = srcApp.CurrentController
+    dstController = dstApp.CurrentController
+    dispatcher = smgr.createInstance("com.sun.star.frame.DispatchHelper")
+    srcController.setCurrentPage(slide)
+    ## begin: terrible magic to get damn thing copied
+    dispatcher.executeDispatch(srcController.Frame, ".uno:DiaMode", "", 0, ())
+    dispatcher.executeDispatch(srcController.Frame, ".uno:Copy", "", 0, ())
+    dispatcher.executeDispatch(srcController.Frame, ".uno:NormalMultiPaneGUI", "", 0, ())
+    ## end: terrible magic to get damn thing copied
+    dstController.setCurrentPage(dstApp.DrawPages.getByIndex(insert_after))
+    dispatcher.executeDispatch(dstController.Frame, ".uno:Paste", "", 0, ())
+    return dstApp.DrawPages.getByIndex(insert_after+1)
+
 # duplicates `slide`. Also sets the duplicated slide as "current".
 def copySlide(drawController, slide, smgr):
     dispatcher = smgr.createInstance("com.sun.star.frame.DispatchHelper")
@@ -179,8 +201,10 @@ influencersSorted = collectInfluencers(mentionsSheet)
 # publishersSorted  = collectPublishers(mentionsSheet)
 
 topSlideSample   = impressApp.DrawPages.getByIndex(0)
-topTableSample   = tablesFromSlide(topSlideSample)[0]
-tailSlideSample  = impressApp.DrawPages.getByIndex(1)
+# now, let's copy just for lulz, or rather for testing purposes
+copiedTopSlideSample = copySlideTo(impressApp, impressApp, topSlideSample, 0, smgr)
+topTableSample   = tablesFromSlide(copiedTopSlideSample)[0]
+tailSlideSample  = impressApp.DrawPages.getByIndex(2)
 tailTablesSample = tablesFromSlide(tailSlideSample) # left table
 
 sheetRowsIter = fillSlideTableFromSheet(topTableSample, iter(influencersSorted))
